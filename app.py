@@ -32,12 +32,15 @@ class ENSModel(nn.Module):
         output = self.dense_output(pooled)
         return self.sigmoid(output)
 
-# ----- Load all models -----
+# ----- Load Models -----
 models = []
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 for i in range(1, 5):
     model = ENSModel().to(device)
     model_path = os.path.join("model", f"efficientnet_model_{i}.pt")
+    if not os.path.exists(model_path):
+        raise FileNotFoundError(f"Model file not found: {model_path}")
     model.load_state_dict(torch.load(model_path, map_location=device))
     model.eval()
     models.append(model)
@@ -52,7 +55,7 @@ def preprocess_image(img_path):
     img_tensor = torch.tensor(img).unsqueeze(0).to(device)
     return img_tensor
 
-# ----- Cache Functions -----
+# ----- Cache -----
 def is_cached_result(filename):
     return os.path.exists(f"cache/{filename}.txt")
 
@@ -74,52 +77,39 @@ def load_cache_result(filename):
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
-        try:
-            file = request.files['image']
-            if file and '.' in file.filename:
-                ext = file.filename.rsplit('.', 1)[1].lower()
-                if ext in ALLOWED_EXTENSIONS:
-                    filename = secure_filename(file.filename)
-                    path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                    file.save(path)
+        file = request.files.get('image')
+        if file and '.' in file.filename:
+            ext = file.filename.rsplit('.', 1)[1].lower()
+            if ext in ALLOWED_EXTENSIONS:
+                filename = secure_filename(file.filename)
+                path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(path)
 
-                    result, avg_score, scores = None, None, {}
+                if is_cached_result(filename):
+                    result, avg_score, scores = load_cache_result(filename)
+                else:
+                    img_tensor = preprocess_image(path)
+                    predictions, scores = [], {}
+                    with torch.no_grad():
+                        for idx, model in enumerate(models):
+                            output = model(img_tensor)
+                            score = output.item()
+                            predictions.append(score)
+                            scores[f"Model {idx+1}"] = round(score * 100, 2)
+                    avg_pred = sum(predictions) / len(predictions)
+                    result = 'Stego' if avg_pred >= 0.6 else 'Non-Steg'
+                    avg_score = round(avg_pred * 100, 2)
+                    save_cache_result(filename, result, avg_score, scores)
 
-                    if is_cached_result(filename):
-                        result, avg_score, scores = load_cache_result(filename)
-                    else:
-                        img_tensor = preprocess_image(path)
-                        predictions = []
-                        scores = {}
-                        with torch.no_grad():
-                            for idx, model in enumerate(models):
-                                output = model(img_tensor)
-                                pred_score = output.item()
-                                predictions.append(pred_score)
-                                scores[f"Model {idx+1}"] = round(pred_score * 100, 2)
-
-                        avg_pred = sum(predictions) / len(predictions)
-                        result = 'Stego' if avg_pred >= 0.6 else 'Non-Steg'
-                        avg_score = round(avg_pred * 100, 2)
-
-                        save_cache_result(filename, result, avg_score, scores)
-
-                    return render_template(
-                        'index.html',
-                        result=result,
-                        score=avg_score,
-                        filename=filename,
-                        scores=scores
-                    )
-        except Exception as e:
-            print("⚠️ ERROR:", e)
-            return render_template('index.html', result="Error processing image.", scores={})
+                return render_template('index.html', result=result, score=avg_score, filename=filename, scores=scores)
     return render_template('index.html', result=None, scores={})
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
+# ----- Entry Point -----
 if __name__ == '__main__':
     import os
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
