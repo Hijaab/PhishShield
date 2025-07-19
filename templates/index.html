@@ -1,0 +1,86 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>PhishShield - Steganography Detector</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  {% if scores %}
+  <script>
+    const modelScores = {{ scores | tojson }};
+  </script>
+  {% else %}
+  <script>
+    const modelScores = null;
+  </script>
+  {% endif %}
+
+  <!-- Force light theme by default -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      document.body.classList.add('light');
+    });
+  </script>
+</head>
+
+<body class="light">
+  <div class="wrapper">
+    <!-- Header -->
+    <header>
+      <div class="container">
+        <h1>🛡️ PhishShield</h1>
+        <p>Detect Hidden Steganography in Uploaded Images</p>
+        <label class="switch">
+          <input type="checkbox" id="theme-toggle" aria-label="Toggle theme">
+          <span class="slider round"></span>
+        </label>
+      </div>
+    </header>
+
+    <!-- Main -->
+    <main class="container main-grid">
+      <!-- Upload Section -->
+      <section class="card upload-card">
+        <h2>Upload Image</h2>
+        <form method="POST" enctype="multipart/form-data" id="upload-form">
+          <input type="file" name="image" id="image-upload" class="upload-input" required aria-label="Upload image">
+          <label for="image-upload" class="upload-label">Choose Image</label>
+          <button type="submit" class="btn-primary">Analyze</button>
+        </form>
+        <img id="preview" class="preview-image hidden" alt="Image Preview" />
+        <div id="drop-area" class="drop-area">or drag & drop an image here</div>
+        <div id="loading" class="loading-overlay hidden">
+          <div class="loader"></div>
+        </div>
+      </section>
+
+      <!-- Result Section (shown by default as placeholder, updated on result) -->
+      <section class="card result-card {% if result %}{{ 'stego' if result == 'Stego' else 'non-steg' }}{% endif %}">
+        <h2>Prediction Result</h2>
+        {% if result %}
+        <p class="result-label">Detected: <strong>{{ result }}</strong></p>
+        <p>Confidence Score: <strong>{{ score }}%</strong></p>
+        <img src="{{ url_for('uploaded_file', filename=filename) }}" alt="Uploaded Image" class="preview-image">
+        
+        {% else %}
+        <p class="result-label">Upload an image to see the prediction result here.</p>
+        {% endif %}
+      </section>
+    </main>
+  </div>
+
+  <!-- Footer (sticky) -->
+  <footer>
+    <div class="container">
+      <p>&copy; 2025 PhishShield. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

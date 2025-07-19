@@ -1,0 +1,7 @@
+Flask
+torch
+torchvision
+efficientnet-pytorch
+opencv-python
+numpy
+werkzeug
