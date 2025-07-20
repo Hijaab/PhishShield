@@ -5,7 +5,8 @@ import torch
 import torch.nn as nn
 from efficientnet_pytorch import EfficientNet
 import numpy as np
-import cv2
+# remove: import cv2
+from PIL import Image
 import os
 from PIL import Image
 
@@ -47,14 +48,14 @@ def load_models():
 
 models = load_models()
 
-# ----- Preprocess -----
 def preprocess_image(uploaded_file):
     image = Image.open(uploaded_file).convert('RGB')
-    image = image.resize((512, 512))
+    image = image.resize((512, 512))  # Replace cv2.resize
     img = np.array(image) / 255.0
     img = np.transpose(img, (2, 0, 1)).astype(np.float32)
     img_tensor = torch.tensor(img).unsqueeze(0).to(device)
     return img_tensor, image
+
 
 # ----- Streamlit UI -----
 st.set_page_config(page_title="PhishShield", layout="centered")

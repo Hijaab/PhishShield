@@ -6,3 +6,5 @@ opencv-python
 numpy
 werkzeug
 streamlit
+Pillow
+numpy
