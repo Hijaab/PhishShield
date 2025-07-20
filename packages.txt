@@ -1,2 +1,1 @@
-# packages.txt (optional, for OpenCV error prevention)
 libgl1-mesa-glx
