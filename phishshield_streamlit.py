@@ -1,13 +1,11 @@
-# phishshield_streamlit.py
+import os
+os.environ["STREAMLIT_DISABLE_FILE_WATCHER"] = "true"  # Prevent inotify limit error
 
 import streamlit as st
 import torch
 import torch.nn as nn
 from efficientnet_pytorch import EfficientNet
 import numpy as np
-# remove: import cv2
-from PIL import Image
-import os
 from PIL import Image
 
 # ----- Setup -----
@@ -48,14 +46,14 @@ def load_models():
 
 models = load_models()
 
+# ----- Preprocess -----
 def preprocess_image(uploaded_file):
     image = Image.open(uploaded_file).convert('RGB')
-    image = image.resize((512, 512))  # Replace cv2.resize
+    image = image.resize((512, 512))  # Resizing using PIL
     img = np.array(image) / 255.0
     img = np.transpose(img, (2, 0, 1)).astype(np.float32)
     img_tensor = torch.tensor(img).unsqueeze(0).to(device)
     return img_tensor, image
-
 
 # ----- Streamlit UI -----
 st.set_page_config(page_title="PhishShield", layout="centered")
@@ -79,7 +77,7 @@ if uploaded_file:
         avg_score = round(sum(predictions) / len(predictions) * 100, 2)
         result = 'Stego' if avg_score >= 60 else 'Non-Steg'
 
-        st.image(display_image, caption="Uploaded Image", use_column_width=True)
+        st.image(display_image, caption="Uploaded Image", use_container_width=True)
         st.markdown(f"### 🧠 Prediction: **{result}**")
         st.markdown(f"**Confidence Score:** {avg_score:.2f}%")
 
