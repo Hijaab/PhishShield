@@ -1,9 +1,3 @@
-# Enhancing the app with:
-# - Dark mode toggle
-# - Upload from webcam
-# - Export to PDF
-# - Grad-CAM heatmap
-
 import os
 os.environ["STREAMLIT_DISABLE_FILE_WATCHER"] = "true"
 
@@ -15,7 +9,6 @@ import numpy as np
 from PIL import Image
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
 import cv2
 from fpdf import FPDF
@@ -44,7 +37,6 @@ class ENSModel(nn.Module):
         output = self.dense_output(pooled)
         return self.sigmoid(output)
 
-# ----- Load Models -----
 @st.cache_resource
 def load_models():
     models = []
@@ -69,12 +61,12 @@ def preprocess_image(image):
     img_tensor = torch.tensor(img).unsqueeze(0).to(device)
     return img_tensor, image
 
-# ----- Webcam -----
+# Webcam logic (not capturing frame into model yet)
 class VideoProcessor(VideoTransformerBase):
     def transform(self, frame):
         return cv2.flip(frame.to_ndarray(format="bgr24"), 1)
 
-# ----- Confidence Label -----
+# Confidence level helper
 def get_risk_label(score):
     if score >= 85:
         return "High Confidence"
@@ -83,25 +75,25 @@ def get_risk_label(score):
     else:
         return "Low Confidence"
 
-# ----- Page Config -----
+# ----- Page Setup -----
 st.set_page_config(page_title="PhishShield", layout="wide")
+
 dark_mode = st.toggle("🌙 Dark Mode")
 if dark_mode:
     st.markdown("<style>body { background-color: #0e1117; color: #fafafa; }</style>", unsafe_allow_html=True)
 
-# ----- Sidebar -----
-st.sidebar.title("🔐 PhishShield")
-mode = st.sidebar.radio("Upload Method", ["Upload Image", "Use Webcam"])
-if mode == "Upload Image":
-    uploaded_file = st.sidebar.file_uploader("Choose an image", type=list(ALLOWED_EXTENSIONS))
-else:
-    st.sidebar.write("Capture Image:")
-    webrtc_streamer(key="example", video_processor_factory=VideoProcessor)
-    uploaded_file = None  # Webcam not captured yet
+st.title("🛡️ PhishShield – Steganography Detection")
+st.caption("Upload an image and detect hidden steganographic content using AI ensemble.")
+
+# ----- Upload Image -----
+uploaded_file = st.file_uploader("📁 Upload an image", type=list(ALLOWED_EXTENSIONS))
+
+# ----- Optional Webcam -----
+with st.expander("📷 Use Webcam Instead"):
+    st.info("Note: Webcam capture for prediction is not implemented yet.")
+    webrtc_streamer(key="webcam", video_processor_factory=VideoProcessor)
 
 # ----- Main Logic -----
-st.title("PhishShield – Steganography Detection")
-
 if uploaded_file:
     img_tensor, display_image = preprocess_image(Image.open(uploaded_file))
     predictions, scores = [], {}
@@ -120,21 +112,22 @@ if uploaded_file:
 
     left_col, right_col = st.columns([1, 1.5])
     with left_col:
-        st.image(display_image, caption="Uploaded Image", use_container_width=True)
+        st.image(display_image, caption="📸 Uploaded Image", use_container_width=True)
+
     with right_col:
         st.markdown(f"<h3 style='color:{result_color}'>{result}</h3>", unsafe_allow_html=True)
-        st.write(f"Confidence Score: `{avg_score}%`")
-        st.write(f"Confidence Level: `{confidence_level}`")
+        st.write(f"🔢 Confidence Score: `{avg_score}%`")
+        st.write(f"🔒 Confidence Level: `{confidence_level}`")
         st.progress(int(avg_score))
 
     df_scores = pd.DataFrame(scores.items(), columns=["Model", "Score"])
     st.subheader("📊 Model Scores")
     st.dataframe(df_scores)
 
-    # Plot
-    st.plotly_chart(px.bar(df_scores, x="Model", y="Score", color="Score", color_continuous_scale="RdYlGn"))
+    st.plotly_chart(px.bar(df_scores, x="Model", y="Score", color="Score",
+                           color_continuous_scale="RdYlGn", height=300), use_container_width=True)
 
-    # Export to PDF
+    # ----- PDF Export -----
     if st.button("📄 Export PDF Report"):
         pdf = FPDF()
         pdf.add_page()
@@ -143,12 +136,14 @@ if uploaded_file:
         for k, v in scores.items():
             pdf.cell(200, 10, txt=f"{k}: {v}%", ln=True)
         pdf.cell(200, 10, txt=f"Result: {result}", ln=True)
+        pdf.cell(200, 10, txt=f"Confidence: {avg_score:.2f}%", ln=True)
         pdf_output = io.BytesIO()
         pdf.output(pdf_output)
         b64 = base64.b64encode(pdf_output.getvalue()).decode()
         href = f'<a href="data:application/pdf;base64,{b64}" download="phishshield_report.pdf">Download PDF Report</a>'
         st.markdown(href, unsafe_allow_html=True)
 
+# ----- Sticky Footer -----
 st.markdown("""
 <style>
 footer {visibility: hidden;}
@@ -157,17 +152,17 @@ footer {visibility: hidden;}
     padding-bottom: 80px;
 }
 footer::after {
-    content: "© 2025 PhishShield | Final Year Project";
+    content: "© 2025 PhishShield | Final Year Project | Built with PyTorch + Streamlit";
     visibility: visible;
     display: block;
     position: fixed;
-    background: #f1f1f1;
+    background: #f8f9fa;
     padding: 10px;
     text-align: center;
     bottom: 0;
     left: 0;
     width: 100%;
-    color: #888;
+    color: #666;
     font-size: 14px;
 }
 </style>
