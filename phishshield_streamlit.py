@@ -11,11 +11,11 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-# ----- Setup -----
+# ----------------- SETUP -----------------
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 
-# ----- Define Model -----
+# ----------------- MODEL -----------------
 def GlobalAvgPooling(x):
     return x.mean(dim=2).mean(dim=2)
 
@@ -33,7 +33,6 @@ class ENSModel(nn.Module):
         output = self.dense_output(pooled)
         return self.sigmoid(output)
 
-# ----- Load Models -----
 @st.cache_resource
 def load_models():
     models = []
@@ -49,7 +48,7 @@ def load_models():
 
 models = load_models()
 
-# ----- Preprocessing -----
+# ----------------- UTILS -----------------
 def preprocess_image(uploaded_file):
     image = Image.open(uploaded_file).convert('RGB')
     image = image.resize((512, 512))
@@ -58,7 +57,6 @@ def preprocess_image(uploaded_file):
     img_tensor = torch.tensor(img).unsqueeze(0).to(device)
     return img_tensor, image
 
-# ----- Utility -----
 def get_risk_label(score):
     if score >= 85:
         return "High Confidence"
@@ -67,165 +65,121 @@ def get_risk_label(score):
     else:
         return "Low Confidence"
 
-# ----- Streamlit UI -----
+# ----------------- STREAMLIT LAYOUT -----------------
 st.set_page_config(page_title="PhishShield", layout="wide")
 
-# Sidebar
-with st.sidebar:
-    st.header("ℹ️ About PhishShield")
-    st.markdown("""
-    - 🧠 AI-based steganography detection  
-    - 🔍 Uses EfficientNet ensemble  
-    - 📊 Reports confidence, variance, predictions  
-    """)
-    st.divider()
-    st.markdown("🔗 **Links**")
-    st.markdown("[GitHub Repo](https://github.com/yourrepo)")
-    st.markdown("[Contact Developer](mailto:your.email@example.com)")
-    st.markdown("[Project Report (PDF)](#)")
-
-# Main Title
 st.title("🛡️ PhishShield – Steganography Detection")
-st.caption("Ensemble-based detection of hidden content in digital images.")
+st.caption("An ensemble deep learning model for detecting hidden content in images.")
 st.divider()
-
-uploaded_file = st.file_uploader("📤 Upload an image for analysis", type=list(ALLOWED_EXTENSIONS))
 
 left_col, right_col = st.columns([1, 1.5])
 
-if uploaded_file:
-    with st.spinner("Running deep learning inference..."):
+with left_col:
+    uploaded_file = st.file_uploader("Upload an image for analysis", type=list(ALLOWED_EXTENSIONS))
+    if uploaded_file:
+        st.subheader("📷 Uploaded Image")
         img_tensor, display_image = preprocess_image(uploaded_file)
-        predictions, scores = [], {}
+        st.image(display_image, use_container_width=True)
 
-        with torch.no_grad():
-            for idx, model in enumerate(models):
-                output = model(img_tensor)
-                score = output.item()
-                predictions.append(score)
-                scores[f"Model {idx+1}"] = round(score * 100, 2)
+        with st.spinner("Running analysis..."):
+            predictions = []
+            scores = {}
+            with torch.no_grad():
+                for idx, model in enumerate(models):
+                    output = model(img_tensor)
+                    score = output.item()
+                    predictions.append(score)
+                    scores[f"Model {idx+1}"] = round(score * 100, 2)
 
-        avg_score = round(np.mean(predictions) * 100, 2)
-        variance = round(np.var(predictions) * 10000, 2)
-        result = "Stego" if avg_score >= 60 else "Non-Steg"
-        result_color = '#d9534f' if result == 'Stego' else '#5cb85c'
-        interpretation = "Potential hidden content detected." if result == "Stego" else "No hidden content detected."
-        confidence_level = get_risk_label(avg_score)
+            avg_score = round(np.mean(predictions) * 100, 2)
+            variance = round(np.var(predictions) * 10000, 2)
+            result = "Stego" if avg_score >= 60 else "Non-Steg"
+            confidence_level = get_risk_label(avg_score)
+            result_color = '#d9534f' if result == "Stego" else '#5cb85c'
+            interpretation = "Potential hidden content detected." if result == "Stego" else "No hidden content detected."
 
-        # LEFT COLUMN
-        with left_col:
-            st.subheader("📸 Uploaded Image")
-            st.image(display_image, use_container_width=True)
-            st.divider()
-            with st.expander("🧾 Raw Model Outputs"):
-                st.json(scores)
+        with st.expander("🧾 Model Scores"):
+            st.json(scores)
 
-        # RIGHT COLUMN
-        with right_col:
-            st.subheader("🧪 Prediction Summary")
-            st.markdown(f"<h4 style='color:{result_color}'>{result}</h4>", unsafe_allow_html=True)
-            st.markdown(f"**Confidence Score**: {avg_score:.2f}%")
-            st.markdown(f"**Prediction Confidence Level**: `{confidence_level}`")
-            st.markdown(f"**Model Disagreement (Variance)**: `{variance:.2f}`")
-            st.markdown(f"**Interpretation**: {interpretation}")
-            st.progress(int(avg_score))
+with right_col:
+    if uploaded_file:
+        st.subheader("📊 Prediction Summary")
+        st.markdown(f"<h4 style='color:{result_color}'>{result}</h4>", unsafe_allow_html=True)
+        st.markdown(f"**Confidence Score:** {avg_score:.2f}%")
+        st.markdown(f"**Prediction Confidence Level:** `{confidence_level}`")
+        st.markdown(f"**Model Disagreement (Variance):** `{variance:.2f}`")
+        st.markdown(f"**Interpretation:** {interpretation}")
+        st.progress(int(avg_score))
 
-            col1, col2 = st.columns(2)
-            col1.metric("Models Used", f"{len(models)}")
-            col2.metric("Decision Threshold", "60%")
+        col1, col2 = st.columns(2)
+        col1.metric("Models Used", f"{len(models)}")
+        col2.metric("Decision Threshold", "60%")
 
-            st.divider()
+        st.divider()
+        st.subheader("🧭 Confidence Gauge")
+        fig_gauge = go.Figure(go.Indicator(
+            mode="gauge+number",
+            value=avg_score,
+            domain={'x': [0, 1], 'y': [0, 1]},
+            title={'text': "Detection Confidence"},
+            gauge={
+                'axis': {'range': [0, 100]},
+                'bar': {'color': result_color},
+                'steps': [
+                    {'range': [0, 60], 'color': "#e5f5e0"},
+                    {'range': [60, 85], 'color': "#ffffb2"},
+                    {'range': [85, 100], 'color': "#fcbba1"},
+                ],
+            }
+        ))
+        fig_gauge.update_layout(height=250)
+        st.plotly_chart(fig_gauge, use_container_width=True)
 
-            st.subheader("📈 Confidence Gauge")
-            fig_gauge = go.Figure(go.Indicator(
-                mode="gauge+number",
-                value=avg_score,
-                domain={'x': [0, 1], 'y': [0, 1]},
-                title={'text': "Detection Confidence"},
-                gauge={
-                    'axis': {'range': [0, 100]},
-                    'bar': {'color': result_color},
-                    'steps': [
-                        {'range': [0, 60], 'color': "#e5f5e0"},
-                        {'range': [60, 85], 'color': "#ffffb2"},
-                        {'range': [85, 100], 'color': "#fcbba1"},
-                    ],
-                }
-            ))
-            fig_gauge.update_layout(height=250)
-            st.plotly_chart(fig_gauge, use_container_width=True)
+        st.subheader("📉 Score Distribution")
+        df_scores = pd.DataFrame(scores.items(), columns=["Model", "Score"])
+        bar_chart = px.bar(df_scores, x="Model", y="Score", color="Score", 
+                           color_continuous_scale="RdYlGn", range_y=[0, 100], height=300)
+        bar_chart.update_layout(template="simple_white", showlegend=False)
+        st.plotly_chart(bar_chart, use_container_width=True)
 
-            st.subheader("📊 Score Distribution")
-            df_scores = pd.DataFrame(scores.items(), columns=["Model", "Score"])
-            bar_chart = px.bar(df_scores, x="Model", y="Score", color="Score", 
-                               color_continuous_scale="RdYlGn", range_y=[0, 100], height=300)
-            bar_chart.update_layout(template="simple_white", showlegend=False)
-            st.plotly_chart(bar_chart, use_container_width=True)
+        st.subheader("📈 Trend Line")
+        trend_df = pd.DataFrame({
+            "Model": [f"Model {i+1}" for i in range(len(predictions))],
+            "Score": [round(p * 100, 2) for p in predictions]
+        })
+        line_chart = px.line(trend_df, x="Model", y="Score", markers=True)
+        line_chart.update_layout(template="plotly_white", yaxis_range=[0, 100])
+        st.plotly_chart(line_chart, use_container_width=True)
 
-            st.subheader("📉 Trend Line")
-            trend_df = pd.DataFrame({
-                "Model": [f"Model {i+1}" for i in range(len(predictions))],
-                "Score": [round(p * 100, 2) for p in predictions]
-            })
-            line_chart = px.line(trend_df, x="Model", y="Score", markers=True)
-            line_chart.update_layout(template="plotly_white", yaxis_range=[0, 100])
-            st.plotly_chart(line_chart, use_container_width=True)
+        st.divider()
+        st.subheader("📥 Download Report")
+        report_csv = df_scores.to_csv(index=False).encode('utf-8')
+        st.download_button("Download CSV Report", report_csv, "phishshield_report.csv", "text/csv")
 
-            st.divider()
-            st.subheader("📥 Download Report")
-            report_csv = df_scores.to_csv(index=False).encode('utf-8')
-            st.download_button("Download CSV Report", report_csv, "phishshield_report.csv", "text/csv")
-
+# ----------------- FOOTER -----------------
 st.markdown("---")
-
-# ----- Enhanced Footer -----
 st.markdown("""
 <style>
+footer {visibility: hidden;}
 .stApp {
     position: relative;
     min-height: 100vh;
     padding-bottom: 60px;
 }
-footer { visibility: hidden; }
-
-.footer-container {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 14px;
-    color: #6c757d;
+.footer {
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    width: 100%;
     background-color: #f8f9fa;
-    padding: 16px 24px;
-    border-top: 1px solid #dee2e6;
-    margin-top: 32px;
-}
-
-.footer-left {
-    text-align: left;
-}
-.footer-right {
-    text-align: right;
-}
-.footer-right a {
-    margin-left: 16px;
+    text-align: center;
+    padding: 12px;
     color: #6c757d;
-    text-decoration: none;
-}
-.footer-right a:hover {
-    color: #343a40;
-    text-decoration: underline;
+    font-size: 14px;
+    border-top: 1px solid #dee2e6;
 }
 </style>
-
-<div class="footer-container">
-    <div class="footer-left">
-        © 2025 PhishShield | Final Year Project<br>
-        Developed by <strong>Hijaab</strong> | CSE Department
-    </div>
-    <div class="footer-right">
-        <a href="mailto:your.email@example.com">Contact</a>
-        <a href="https://github.com/yourrepo" target="_blank">GitHub</a>
-        <a href="#">About</a>
-    </div>
+<div class="footer">
+    © 2025 PhishShield – Final Year Project | Built with PyTorch & Streamlit
 </div>
 """, unsafe_allow_html=True)
