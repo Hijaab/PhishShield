@@ -26,33 +26,36 @@
       </div>
     </header>
 
-    <main class="container main-grid">
-      <section class="card upload-card">
-        <h2>Upload Image</h2>
-        <form method="POST" enctype="multipart/form-data" id="upload-form">
-          <input type="file" name="image" id="image-upload" class="upload-input" required aria-label="Upload image">
-          <label for="image-upload" class="upload-label">Choose Image</label>
-          <button type="submit" class="btn-primary">Analyze</button>
-        </form>
-        <img id="preview" class="preview-image hidden" alt="Image Preview" />
-        <div id="drop-area" class="drop-area">or drag & drop an image here</div>
-        <div id="loading" class="loading-overlay hidden">
-          <div class="loader"></div>
-        </div>
-      </section>
+    <main class="container main-grid horizontal-layout">
+  <!-- Result Section (Left) -->
+  <section class="card result-card {% if result %}{{ 'stego' if result == 'Stego' else 'non-steg' }}{% endif %}">
+    <h2>Prediction Result</h2>
+    {% if result %}
+    <p class="result-label">Detected: <strong>{{ result }}</strong></p>
+    <p>Confidence Score: <strong>{{ score }}%</strong></p>
+    <img src="{{ url_for('uploaded_file', filename=filename) }}" alt="Uploaded Image" class="preview-image">
+    <canvas id="chart" width="300" height="150" style="margin-top: 20px;"></canvas>
+    {% else %}
+    <p class="result-label">Upload an image to see the prediction result here.</p>
+    {% endif %}
+  </section>
 
-      <section class="card result-card {% if result %}{{ 'stego' if result == 'Stego' else 'non-steg' }}{% endif %}">
-        <h2>Prediction Result</h2>
-        {% if result %}
-        <p class="result-label">Detected: <strong>{{ result }}</strong></p>
-        <p>Confidence Score: <strong>{{ score }}%</strong></p>
-        <img src="{{ url_for('uploaded_file', filename=filename) }}" alt="Uploaded Image" class="preview-image">
-        <canvas id="chart" width="400" height="200"></canvas>
-        {% else %}
-        <p class="result-label">Upload an image to see the prediction result here.</p>
-        {% endif %}
-      </section>
-    </main>
+  <!-- Upload Section (Right) -->
+  <section class="card upload-card">
+    <h2>Upload Image</h2>
+    <form method="POST" enctype="multipart/form-data" id="upload-form">
+      <input type="file" name="image" id="image-upload" class="upload-input" required aria-label="Upload image">
+      <label for="image-upload" class="upload-label">Choose Image</label>
+      <button type="submit" class="btn-primary">Analyze</button>
+    </form>
+    <img id="preview" class="preview-image hidden" alt="Image Preview" />
+    <div id="drop-area" class="drop-area">or drag & drop an image here</div>
+    <div id="loading" class="loading-overlay hidden">
+      <div class="loader"></div>
+    </div>
+  </section>
+</main>
+
   </div>
 
   <footer>

@@ -98,3 +98,28 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
+// --- Render Chart ---
+if (window.modelScores && document.getElementById('chart')) {
+  const ctx = document.getElementById('chart').getContext('2d');
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: Object.keys(modelScores),
+      datasets: [{
+        label: 'Model Score (%)',
+        data: Object.values(modelScores),
+        backgroundColor: '#3b82f6',
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 100
+        }
+      }
+    }
+  });
+}

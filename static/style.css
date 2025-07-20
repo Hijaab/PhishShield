@@ -228,3 +228,24 @@ body.dark footer {
   background: #181824;
   color: #ccc;
 }
+
+
+/* Horizontal layout for main sections */
+.horizontal-layout {
+  flex-direction: row;
+  align-items: flex-start;
+}
+
+@media (max-width: 768px) {
+  .horizontal-layout {
+    flex-direction: column;
+  }
+}
+
+/* Add margin between left and right cards */
+.upload-card {
+  order: 2;
+}
+.result-card {
+  order: 1;
+}
