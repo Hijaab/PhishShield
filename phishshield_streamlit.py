@@ -70,11 +70,11 @@ def get_risk_label(score):
 # ----- Streamlit UI -----
 st.set_page_config(page_title="PhishShield", layout="wide")
 
-st.title("PhishShield – Steganography Detection")
+st.title("🛡️ PhishShield – Steganography Detection")
 st.caption("Ensemble-based detection of hidden content in digital images.")
 st.divider()
 
-uploaded_file = st.file_uploader("Upload an image", type=list(ALLOWED_EXTENSIONS))
+uploaded_file = st.file_uploader("📁 Upload an image", type=list(ALLOWED_EXTENSIONS))
 
 left_col, right_col = st.columns([1, 1.5])
 
@@ -97,17 +97,25 @@ if uploaded_file:
         interpretation = "Potential hidden content detected." if result == "Stego" else "No hidden content detected."
         confidence_level = get_risk_label(avg_score)
 
-        # LEFT COLUMN
+        # --- LEFT COLUMN ---
         with left_col:
-            st.subheader("Uploaded Image")
+            st.subheader("📸 Uploaded Image")
             st.image(display_image, use_container_width=True)
-            st.divider()
-            with st.expander("Raw Model Outputs"):
-                st.json(scores)
 
-        # RIGHT COLUMN
+            st.divider()
+            st.subheader("🧾 Image Info")
+            st.markdown(f"**Filename:** `{uploaded_file.name}`")
+            st.markdown(f"**Format:** `{uploaded_file.type}`")
+            st.markdown(f"**Size:** `{uploaded_file.size / 1024:.2f} KB`")
+            st.markdown(f"**Resolution:** `512x512 px`")
+
+            st.divider()
+            with st.expander("🔍 Try Sample Image"):
+                st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Blue_Tiger_%28Tirumala_limniace%29_male_by_Kadavoor.JPG/800px-Blue_Tiger_%28Tirumala_limniace%29_male_by_Kadavoor.JPG", caption="Sample Stego", use_column_width=True)
+
+        # --- RIGHT COLUMN ---
         with right_col:
-            st.subheader("Prediction Summary")
+            st.subheader("🧠 Prediction Summary")
             st.markdown(f"<h4 style='color:{result_color}'>{result}</h4>", unsafe_allow_html=True)
             st.markdown(f"**Confidence Score**: {avg_score:.2f}%")
             st.markdown(f"**Prediction Confidence Level**: `{confidence_level}`")
@@ -120,8 +128,7 @@ if uploaded_file:
             col2.metric("Decision Threshold", "60%")
 
             st.divider()
-
-            st.subheader("Confidence Gauge")
+            st.subheader("📊 Confidence Gauge")
             fig_gauge = go.Figure(go.Indicator(
                 mode="gauge+number",
                 value=avg_score,
@@ -140,14 +147,14 @@ if uploaded_file:
             fig_gauge.update_layout(height=250)
             st.plotly_chart(fig_gauge, use_container_width=True)
 
-            st.subheader("Score Distribution")
+            st.subheader("📈 Score Distribution")
             df_scores = pd.DataFrame(scores.items(), columns=["Model", "Score"])
             bar_chart = px.bar(df_scores, x="Model", y="Score", color="Score", 
                                color_continuous_scale="RdYlGn", range_y=[0, 100], height=300)
             bar_chart.update_layout(template="simple_white", showlegend=False)
             st.plotly_chart(bar_chart, use_container_width=True)
 
-            st.subheader("Trend Line")
+            st.subheader("📉 Trend Line")
             trend_df = pd.DataFrame({
                 "Model": [f"Model {i+1}" for i in range(len(predictions))],
                 "Score": [round(p * 100, 2) for p in predictions]
@@ -157,9 +164,32 @@ if uploaded_file:
             st.plotly_chart(line_chart, use_container_width=True)
 
             st.divider()
-            st.subheader("Download Report")
+            st.subheader("📄 Download Report")
             report_csv = df_scores.to_csv(index=False).encode('utf-8')
-            st.download_button("Download CSV Report", report_csv, "phishshield_report.csv", "text/csv")
+            st.download_button("⬇️ Download CSV Report", report_csv, "phishshield_report.csv", "text/csv")
 
-st.markdown("---")
-st.caption("© 2025 PhishShield – Final Year Project | Built with PyTorch + Streamlit")
+# ----- Sticky Footer -----
+st.markdown("""
+<style>
+footer {visibility: hidden;}
+.stApp {
+    position: relative;
+    padding-bottom: 100px;
+}
+footer::after {
+    content: "© 2025 PhishShield | Final Year Project | Built with PyTorch + Streamlit";
+    visibility: visible;
+    display: block;
+    position: fixed;
+    background: #f8f9fa;
+    padding: 10px;
+    text-align: center;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    color: #666;
+    font-size: 14px;
+    z-index: 9999;
+}
+</style>
+""", unsafe_allow_html=True)
