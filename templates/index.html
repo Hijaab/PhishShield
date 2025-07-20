@@ -1,4 +1,3 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,28 +6,15 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  {% if scores %}
   <script>
-    const modelScores = {{ scores | tojson }};
-  </script>
-  {% else %}
-  <script>
-    const modelScores = null;
-  </script>
-  {% endif %}
-
-  <!-- Force light theme by default -->
-  <script>
+    const modelScores = {{ scores | tojson if scores else 'null' }};
     document.addEventListener('DOMContentLoaded', () => {
       document.body.classList.add('light');
     });
   </script>
 </head>
-
 <body class="light">
   <div class="wrapper">
-    <!-- Header -->
     <header>
       <div class="container">
         <h1>🛡️ PhishShield</h1>
@@ -40,9 +26,7 @@
       </div>
     </header>
 
-    <!-- Main -->
     <main class="container main-grid">
-      <!-- Upload Section -->
       <section class="card upload-card">
         <h2>Upload Image</h2>
         <form method="POST" enctype="multipart/form-data" id="upload-form">
@@ -57,14 +41,13 @@
         </div>
       </section>
 
-      <!-- Result Section (shown by default as placeholder, updated on result) -->
       <section class="card result-card {% if result %}{{ 'stego' if result == 'Stego' else 'non-steg' }}{% endif %}">
         <h2>Prediction Result</h2>
         {% if result %}
         <p class="result-label">Detected: <strong>{{ result }}</strong></p>
         <p>Confidence Score: <strong>{{ score }}%</strong></p>
         <img src="{{ url_for('uploaded_file', filename=filename) }}" alt="Uploaded Image" class="preview-image">
-        
+        <canvas id="chart" width="400" height="200"></canvas>
         {% else %}
         <p class="result-label">Upload an image to see the prediction result here.</p>
         {% endif %}
@@ -72,14 +55,12 @@
     </main>
   </div>
 
-  <!-- Footer (sticky) -->
   <footer>
     <div class="container">
       <p>&copy; 2025 PhishShield. All rights reserved.</p>
     </div>
   </footer>
 
-  <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
