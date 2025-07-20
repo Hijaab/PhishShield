@@ -151,7 +151,7 @@ if uploaded_file:
         # ----- LEFT CARD -----
         with left_col:
             st.markdown("<div class='card'>", unsafe_allow_html=True)
-            st.image(display_image, caption="Uploaded Image", use_column_width=True)
+            st.image(display_image, caption="Uploaded Image", use_container_width=True)
             st.markdown(f"**Size:** {display_image.size[0]} x {display_image.size[1]}  \n"
                         f"**Mode:** {display_image.mode}  \n"
                         f"**Format:** {uploaded_file.type.split('/')[-1].upper()}")
