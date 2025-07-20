@@ -99,6 +99,29 @@ if uploaded_file:
         with left_col:
             st.subheader("Uploaded Image")
             st.image(display_image, use_container_width=True)
+
+            # Image Info Card
+            st.markdown("### Image Info")
+            st.markdown(f"- **Size**: {display_image.size[0]} x {display_image.size[1]}")
+            st.markdown(f"- **Mode**: {display_image.mode}")
+            st.markdown(f"- **Format**: {uploaded_file.type.split('/')[-1].upper()}")
+
+            # Risk Label Badge
+            st.markdown("---")
+            risk_colors = {
+                "Low Confidence": "#81c784",
+                "Moderate Confidence": "#ffd54f",
+                "High Confidence": "#e57373"
+            }
+            st.markdown(
+                f"<div style='background-color:{risk_colors[confidence_level]};"
+                f"color:#000;padding:8px 16px;border-radius:12px;text-align:center;"
+                f"font-weight:600;font-size:16px;'>"
+                f"Risk Category: {confidence_level}"
+                f"</div>",
+                unsafe_allow_html=True
+            )
+
             st.markdown("---")
             with st.expander("Model Raw Scores"):
                 st.json(scores)
@@ -181,8 +204,14 @@ footer {visibility: hidden;}
 h1, h2, h3, h4 {
     font-weight: 600;
 }
+.center-footer {
+    text-align: center;
+    font-size: 14px;
+    margin-top: 50px;
+    color: #666;
+}
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("---")
-st.caption("© 2025 PhishShield – Final Year Project | Built with PyTorch & Streamlit")
+# Centered footer text
+st.markdown("<div class='center-footer'>© 2025 PhishShield – Final Year Project | Built with PyTorch & Streamlit</div>", unsafe_allow_html=True)
