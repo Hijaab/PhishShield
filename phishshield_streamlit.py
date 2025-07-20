@@ -79,7 +79,7 @@ uploaded_file = st.file_uploader("📁 Upload an image", type=list(ALLOWED_EXTEN
 left_col, right_col = st.columns([1, 1.5])
 
 if uploaded_file:
-    with st.spinner("Running analysis..."):
+    with st.spinner("🔍 Running analysis..."):
         img_tensor, display_image = preprocess_image(uploaded_file)
         predictions, scores = [], {}
 
@@ -110,8 +110,12 @@ if uploaded_file:
             st.markdown(f"**Resolution:** `512x512 px`")
 
             st.divider()
-            with st.expander("🔍 Try Sample Image"):
-                st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Blue_Tiger_%28Tirumala_limniace%29_male_by_Kadavoor.JPG/800px-Blue_Tiger_%28Tirumala_limniace%29_male_by_Kadavoor.JPG", caption="Sample Stego", use_column_width=True)
+            with st.expander("📚 Example Image"):
+                st.image(
+                    "https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Blue_Tiger_%28Tirumala_limniace%29_male_by_Kadavoor.JPG/800px-Blue_Tiger_%28Tirumala_limniace%29_male_by_Kadavoor.JPG",
+                    caption="Sample Stego Image",
+                    use_column_width=True
+                )
 
         # --- RIGHT COLUMN ---
         with right_col:
@@ -174,7 +178,7 @@ st.markdown("""
 footer {visibility: hidden;}
 .stApp {
     position: relative;
-    padding-bottom: 100px;
+    padding-bottom: 80px;
 }
 footer::after {
     content: "© 2025 PhishShield | Final Year Project | Built with PyTorch + Streamlit";
@@ -182,14 +186,15 @@ footer::after {
     display: block;
     position: fixed;
     background: #f8f9fa;
-    padding: 10px;
+    padding: 10px 20px;
     text-align: center;
     bottom: 0;
     left: 0;
     width: 100%;
-    color: #666;
+    color: #888;
     font-size: 14px;
     z-index: 9999;
+    border-top: 1px solid #e1e1e1;
 }
 </style>
 """, unsafe_allow_html=True)
