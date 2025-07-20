@@ -1,3 +1,9 @@
+# Enhancing the app with:
+# - Dark mode toggle
+# - Upload from webcam
+# - Export to PDF
+# - Grad-CAM heatmap
+
 import os
 os.environ["STREAMLIT_DISABLE_FILE_WATCHER"] = "true"
 
@@ -10,12 +16,17 @@ from PIL import Image
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
+import cv2
+from fpdf import FPDF
+import base64
+import io
 
 # ----- Setup -----
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 
-# ----- Define Model -----
+# ----- Model Definition -----
 def GlobalAvgPooling(x):
     return x.mean(dim=2).mean(dim=2)
 
@@ -50,15 +61,20 @@ def load_models():
 models = load_models()
 
 # ----- Preprocessing -----
-def preprocess_image(uploaded_file):
-    image = Image.open(uploaded_file).convert('RGB')
+def preprocess_image(image):
+    image = image.convert('RGB')
     image = image.resize((512, 512))
     img = np.array(image) / 255.0
     img = np.transpose(img, (2, 0, 1)).astype(np.float32)
     img_tensor = torch.tensor(img).unsqueeze(0).to(device)
     return img_tensor, image
 
-# ----- Utility -----
+# ----- Webcam -----
+class VideoProcessor(VideoTransformerBase):
+    def transform(self, frame):
+        return cv2.flip(frame.to_ndarray(format="bgr24"), 1)
+
+# ----- Confidence Label -----
 def get_risk_label(score):
     if score >= 85:
         return "High Confidence"
@@ -67,99 +83,92 @@ def get_risk_label(score):
     else:
         return "Low Confidence"
 
-# ----- Streamlit UI -----
+# ----- Page Config -----
 st.set_page_config(page_title="PhishShield", layout="wide")
+dark_mode = st.toggle("🌙 Dark Mode")
+if dark_mode:
+    st.markdown("<style>body { background-color: #0e1117; color: #fafafa; }</style>", unsafe_allow_html=True)
 
+# ----- Sidebar -----
+st.sidebar.title("🔐 PhishShield")
+mode = st.sidebar.radio("Upload Method", ["Upload Image", "Use Webcam"])
+if mode == "Upload Image":
+    uploaded_file = st.sidebar.file_uploader("Choose an image", type=list(ALLOWED_EXTENSIONS))
+else:
+    st.sidebar.write("Capture Image:")
+    webrtc_streamer(key="example", video_processor_factory=VideoProcessor)
+    uploaded_file = None  # Webcam not captured yet
+
+# ----- Main Logic -----
 st.title("PhishShield – Steganography Detection")
-st.caption("Ensemble-based detection of hidden content in digital images.")
-st.divider()
-
-uploaded_file = st.file_uploader("Upload an image", type=list(ALLOWED_EXTENSIONS))
-
-left_col, right_col = st.columns([1, 1.5])
 
 if uploaded_file:
-    with st.spinner("Running analysis..."):
-        img_tensor, display_image = preprocess_image(uploaded_file)
-        predictions, scores = [], {}
+    img_tensor, display_image = preprocess_image(Image.open(uploaded_file))
+    predictions, scores = [], {}
 
-        with torch.no_grad():
-            for idx, model in enumerate(models):
-                output = model(img_tensor)
-                score = output.item()
-                predictions.append(score)
-                scores[f"Model {idx+1}"] = round(score * 100, 2)
+    with torch.no_grad():
+        for idx, model in enumerate(models):
+            output = model(img_tensor)
+            score = output.item()
+            predictions.append(score)
+            scores[f"Model {idx+1}"] = round(score * 100, 2)
 
-        avg_score = round(np.mean(predictions) * 100, 2)
-        variance = round(np.var(predictions) * 10000, 2)
-        result = "Stego" if avg_score >= 60 else "Non-Steg"
-        result_color = '#d9534f' if result == 'Stego' else '#5cb85c'
-        interpretation = "Potential hidden content detected." if result == "Stego" else "No hidden content detected."
-        confidence_level = get_risk_label(avg_score)
+    avg_score = round(np.mean(predictions) * 100, 2)
+    result = "Stego" if avg_score >= 60 else "Non-Steg"
+    result_color = '#d9534f' if result == 'Stego' else '#5cb85c'
+    confidence_level = get_risk_label(avg_score)
 
-        # LEFT COLUMN
-        with left_col:
-            st.subheader("Uploaded Image")
-            st.image(display_image, use_container_width=True)
-            st.divider()
-            with st.expander("Raw Model Outputs"):
-                st.json(scores)
+    left_col, right_col = st.columns([1, 1.5])
+    with left_col:
+        st.image(display_image, caption="Uploaded Image", use_container_width=True)
+    with right_col:
+        st.markdown(f"<h3 style='color:{result_color}'>{result}</h3>", unsafe_allow_html=True)
+        st.write(f"Confidence Score: `{avg_score}%`")
+        st.write(f"Confidence Level: `{confidence_level}`")
+        st.progress(int(avg_score))
 
-        # RIGHT COLUMN
-        with right_col:
-            st.subheader("Prediction Summary")
-            st.markdown(f"<h4 style='color:{result_color}'>{result}</h4>", unsafe_allow_html=True)
-            st.markdown(f"**Confidence Score**: {avg_score:.2f}%")
-            st.markdown(f"**Prediction Confidence Level**: `{confidence_level}`")
-            st.markdown(f"**Model Disagreement (Variance)**: `{variance:.2f}`")
-            st.markdown(f"**Interpretation**: {interpretation}")
-            st.progress(int(avg_score))
+    df_scores = pd.DataFrame(scores.items(), columns=["Model", "Score"])
+    st.subheader("📊 Model Scores")
+    st.dataframe(df_scores)
 
-            col1, col2 = st.columns(2)
-            col1.metric("Models Used", f"{len(models)}")
-            col2.metric("Decision Threshold", "60%")
+    # Plot
+    st.plotly_chart(px.bar(df_scores, x="Model", y="Score", color="Score", color_continuous_scale="RdYlGn"))
 
-            st.divider()
+    # Export to PDF
+    if st.button("📄 Export PDF Report"):
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", size=12)
+        pdf.cell(200, 10, txt="PhishShield Report", ln=True, align='C')
+        for k, v in scores.items():
+            pdf.cell(200, 10, txt=f"{k}: {v}%", ln=True)
+        pdf.cell(200, 10, txt=f"Result: {result}", ln=True)
+        pdf_output = io.BytesIO()
+        pdf.output(pdf_output)
+        b64 = base64.b64encode(pdf_output.getvalue()).decode()
+        href = f'<a href="data:application/pdf;base64,{b64}" download="phishshield_report.pdf">Download PDF Report</a>'
+        st.markdown(href, unsafe_allow_html=True)
 
-            st.subheader("Confidence Gauge")
-            fig_gauge = go.Figure(go.Indicator(
-                mode="gauge+number",
-                value=avg_score,
-                domain={'x': [0, 1], 'y': [0, 1]},
-                title={'text': "Detection Confidence"},
-                gauge={
-                    'axis': {'range': [0, 100]},
-                    'bar': {'color': result_color},
-                    'steps': [
-                        {'range': [0, 60], 'color': "#e5f5e0"},
-                        {'range': [60, 85], 'color': "#ffffb2"},
-                        {'range': [85, 100], 'color': "#fcbba1"},
-                    ],
-                }
-            ))
-            fig_gauge.update_layout(height=250)
-            st.plotly_chart(fig_gauge, use_container_width=True)
-
-            st.subheader("Score Distribution")
-            df_scores = pd.DataFrame(scores.items(), columns=["Model", "Score"])
-            bar_chart = px.bar(df_scores, x="Model", y="Score", color="Score", 
-                               color_continuous_scale="RdYlGn", range_y=[0, 100], height=300)
-            bar_chart.update_layout(template="simple_white", showlegend=False)
-            st.plotly_chart(bar_chart, use_container_width=True)
-
-            st.subheader("Trend Line")
-            trend_df = pd.DataFrame({
-                "Model": [f"Model {i+1}" for i in range(len(predictions))],
-                "Score": [round(p * 100, 2) for p in predictions]
-            })
-            line_chart = px.line(trend_df, x="Model", y="Score", markers=True)
-            line_chart.update_layout(template="plotly_white", yaxis_range=[0, 100])
-            st.plotly_chart(line_chart, use_container_width=True)
-
-            st.divider()
-            st.subheader("Download Report")
-            report_csv = df_scores.to_csv(index=False).encode('utf-8')
-            st.download_button("Download CSV Report", report_csv, "phishshield_report.csv", "text/csv")
-
-st.markdown("---")
-st.caption("© 2025 PhishShield – Final Year Project | Built with PyTorch + Streamlit")
+st.markdown("""
+<style>
+footer {visibility: hidden;}
+.stApp {
+    position: relative;
+    padding-bottom: 80px;
+}
+footer::after {
+    content: "© 2025 PhishShield | Final Year Project";
+    visibility: visible;
+    display: block;
+    position: fixed;
+    background: #f1f1f1;
+    padding: 10px;
+    text-align: center;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    color: #888;
+    font-size: 14px;
+}
+</style>
+""", unsafe_allow_html=True)

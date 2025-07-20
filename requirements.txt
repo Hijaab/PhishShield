@@ -9,3 +9,5 @@ streamlit
 Pillow
 numpy
 plotly
+fpdf
+streamlit_webrtc
