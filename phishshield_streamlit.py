@@ -1,5 +1,6 @@
 import os
-os.environ["STREAMLIT_DISABLE_FILE_WATCHER"] = "true"  # Prevent inotify limit error
+# 🔧 MUST be set before importing streamlit to avoid "inotify limit reached" error
+os.environ["STREAMLIT_DISABLE_FILE_WATCHER"] = "true"
 
 import streamlit as st
 import torch
@@ -49,7 +50,7 @@ models = load_models()
 # ----- Preprocess -----
 def preprocess_image(uploaded_file):
     image = Image.open(uploaded_file).convert('RGB')
-    image = image.resize((512, 512))  # Resizing using PIL
+    image = image.resize((512, 512))
     img = np.array(image) / 255.0
     img = np.transpose(img, (2, 0, 1)).astype(np.float32)
     img_tensor = torch.tensor(img).unsqueeze(0).to(device)
