@@ -1,5 +1,5 @@
 import os
-# 🔧 MUST be set before importing streamlit to avoid "inotify limit reached" error
+# 🔧 Must be set before importing streamlit to prevent inotify error
 os.environ["STREAMLIT_DISABLE_FILE_WATCHER"] = "true"
 
 import streamlit as st
@@ -57,14 +57,20 @@ def preprocess_image(uploaded_file):
     return img_tensor, image
 
 # ----- Streamlit UI -----
-st.set_page_config(page_title="PhishShield", layout="centered")
-st.title("🛡️ PhishShield: Steganography Detector")
-st.write("Upload an image to detect hidden steganography.")
+st.set_page_config(page_title="PhishShield", layout="wide")
 
-uploaded_file = st.file_uploader("Choose an image", type=list(ALLOWED_EXTENSIONS))
+st.markdown("""
+# 🛡️ PhishShield: Steganography Detector  
+Upload an image and our AI ensemble will determine if hidden steganographic content is present.
+""")
+
+uploaded_file = st.file_uploader("Upload an Image", type=list(ALLOWED_EXTENSIONS), label_visibility="collapsed")
+
+# Two columns: left (image), right (result)
+left_col, right_col = st.columns([1, 1.2])
 
 if uploaded_file:
-    with st.spinner("Analyzing..."):
+    with st.spinner("🔍 Analyzing..."):
         img_tensor, display_image = preprocess_image(uploaded_file)
         predictions = []
         scores = {}
@@ -77,10 +83,20 @@ if uploaded_file:
 
         avg_score = round(sum(predictions) / len(predictions) * 100, 2)
         result = 'Stego' if avg_score >= 60 else 'Non-Steg'
+        result_color = 'red' if result == 'Stego' else 'green'
 
-        st.image(display_image, caption="Uploaded Image", use_container_width=True)
-        st.markdown(f"### 🧠 Prediction: **{result}**")
-        st.markdown(f"**Confidence Score:** {avg_score:.2f}%")
+        # LEFT: Image
+        with left_col:
+            st.subheader("📷 Uploaded Image")
+            st.image(display_image, use_container_width=True)
 
-        st.subheader("Individual Model Scores")
-        st.json(scores)
+        # RIGHT: Results
+        with right_col:
+            st.subheader("🧠 Prediction Results")
+            st.markdown(f"<h3 style='color:{result_color}'>Result: {result}</h3>", unsafe_allow_html=True)
+            st.markdown(f"**Confidence Score:** `{avg_score:.2f}%`")
+            st.progress(int(avg_score))
+
+            st.subheader("📊 Individual Model Scores")
+            for model_name, score in scores.items():
+                st.write(f"{model_name}: {score}%")
