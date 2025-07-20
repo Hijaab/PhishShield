@@ -70,6 +70,7 @@ def get_risk_label(score):
 # ----- UI Setup -----
 st.set_page_config(page_title="PhishShield", layout="wide")
 
+# ---- Styling ----
 st.markdown("""
     <style>
         html, body, [class*="css"] {
@@ -77,15 +78,15 @@ st.markdown("""
             background-color: #f5f7fa;
         }
         .block-container {
-            padding: 1rem 2rem 2rem 2rem;
+            padding-top: 2.5rem !important;
+            padding-bottom: 2rem !important;
         }
         .main-header {
             text-align: center;
-            font-size: 2.5rem;
-            font-weight: bold;
+            font-size: 2.7rem;
+            font-weight: 700;
             color: #1e3a8a;
-            margin-top: 1.2rem;
-            margin-bottom: 0.2rem;
+            margin-bottom: 0.3rem;
         }
         .sub-header {
             text-align: center;
@@ -96,8 +97,8 @@ st.markdown("""
         .card {
             background-color: #ffffff;
             padding: 1.5rem;
-            border-radius: 16px;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.07);
+            border-radius: 18px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
             margin-bottom: 2rem;
         }
         .risk-badge {
@@ -113,13 +114,13 @@ st.markdown("""
             text-align: center;
             font-size: 14px;
             color: #9e9e9e;
-            padding-top: 30px;
+            padding-top: 40px;
         }
         .stDownloadButton > button {
             background-color: #3949ab;
             color: white;
             border-radius: 8px;
-            padding: 0.5rem 1rem;
+            padding: 0.5rem 1.1rem;
             transition: 0.3s;
         }
         .stDownloadButton > button:hover {
@@ -129,14 +130,11 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Optional logo or icon
-# st.image("logo.png", width=120)
-
-# ----- Heading -----
+# ---- Header ----
 st.markdown("<div class='main-header'>PhishShield – Steganography Detection</div>", unsafe_allow_html=True)
 st.markdown("<div class='sub-header'>AI-powered ensemble detection of hidden content in digital images</div>", unsafe_allow_html=True)
 
-# ----- Upload Image -----
+# ---- Upload Image ----
 uploaded_file = st.file_uploader("📤 Upload an image (PNG, JPG, JPEG)", type=list(ALLOWED_EXTENSIONS))
 
 if uploaded_file:
@@ -176,7 +174,6 @@ if uploaded_file:
                         f"**Format:** {uploaded_file.type.split('/')[-1].upper()}")
             st.markdown(f"<div class='risk-badge' style='background-color:{badge_colors[confidence_level]};'>"
                         f"Risk Level: {confidence_level}</div>", unsafe_allow_html=True)
-
             with st.expander("📊 Raw Model Scores"):
                 st.json(scores)
             st.markdown("</div>", unsafe_allow_html=True)
@@ -216,10 +213,9 @@ if uploaded_file:
             st.plotly_chart(fig_gauge, use_container_width=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
-        # VISUALIZATIONS
+        # CHARTS
         st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.subheader("Model Score Visualizations")
-
         df_scores = pd.DataFrame(scores.items(), columns=["Model", "Score"])
         col1, col2 = st.columns(2)
 
@@ -249,12 +245,12 @@ if uploaded_file:
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-        # Download Button
+        # DOWNLOAD REPORT
         st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.subheader("Download CSV Report")
         report_csv = df_scores.to_csv(index=False).encode('utf-8')
         st.download_button("📥 Download Report", report_csv, "phishshield_report.csv", "text/csv")
         st.markdown("</div>", unsafe_allow_html=True)
 
-# ----- Footer -----
+# ---- Footer ----
 st.markdown("<div class='center-footer'>© 2025 PhishShield – Final Year Project | Built with PyTorch & Streamlit</div>", unsafe_allow_html=True)
