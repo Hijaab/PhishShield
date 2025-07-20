@@ -5,3 +5,4 @@ efficientnet-pytorch
 opencv-python
 numpy
 werkzeug
+streamlit

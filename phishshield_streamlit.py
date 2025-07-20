@@ -1,0 +1,86 @@
+# phishshield_streamlit.py
+
+import streamlit as st
+import torch
+import torch.nn as nn
+from efficientnet_pytorch import EfficientNet
+import numpy as np
+import cv2
+import os
+from PIL import Image
+
+# ----- Setup -----
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
+
+# ----- Define Model -----
+def GlobalAvgPooling(x):
+    return x.mean(dim=2).mean(dim=2)
+
+class ENSModel(nn.Module):
+    def __init__(self):
+        super(ENSModel, self).__init__()
+        self.sigmoid = nn.Sigmoid()
+        self.avgpool = GlobalAvgPooling
+        self.efn = EfficientNet.from_pretrained('efficientnet-b0')
+        self.dense_output = nn.Linear(1280, 1)
+
+    def forward(self, x):
+        feat = self.efn.extract_features(x)
+        pooled = self.avgpool(feat)
+        output = self.dense_output(pooled)
+        return self.sigmoid(output)
+
+# ----- Load Models -----
+@st.cache_resource
+def load_models():
+    models = []
+    for i in range(1, 5):
+        model = ENSModel().to(device)
+        model_path = os.path.join("model", f"efficientnet_model_{i}.pt")
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(f"Model file not found: {model_path}")
+        model.load_state_dict(torch.load(model_path, map_location=device))
+        model.eval()
+        models.append(model)
+    return models
+
+models = load_models()
+
+# ----- Preprocess -----
+def preprocess_image(uploaded_file):
+    image = Image.open(uploaded_file).convert('RGB')
+    image = image.resize((512, 512))
+    img = np.array(image) / 255.0
+    img = np.transpose(img, (2, 0, 1)).astype(np.float32)
+    img_tensor = torch.tensor(img).unsqueeze(0).to(device)
+    return img_tensor, image
+
+# ----- Streamlit UI -----
+st.set_page_config(page_title="PhishShield", layout="centered")
+st.title("🛡️ PhishShield: Steganography Detector")
+st.write("Upload an image to detect hidden steganography.")
+
+uploaded_file = st.file_uploader("Choose an image", type=list(ALLOWED_EXTENSIONS))
+
+if uploaded_file:
+    with st.spinner("Analyzing..."):
+        img_tensor, display_image = preprocess_image(uploaded_file)
+        predictions = []
+        scores = {}
+        with torch.no_grad():
+            for idx, model in enumerate(models):
+                output = model(img_tensor)
+                score = output.item()
+                predictions.append(score)
+                scores[f"Model {idx+1}"] = round(score * 100, 2)
+
+        avg_score = round(sum(predictions) / len(predictions) * 100, 2)
+        result = 'Stego' if avg_score >= 60 else 'Non-Steg'
+
+        st.image(display_image, caption="Uploaded Image", use_column_width=True)
+        st.markdown(f"### 🧠 Prediction: **{result}**")
+        st.markdown(f"**Confidence Score:** {avg_score:.2f}%")
+
+        st.subheader("Individual Model Scores")
+        st.json(scores)
