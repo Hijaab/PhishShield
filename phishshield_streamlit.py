@@ -15,7 +15,7 @@ import plotly.graph_objects as go
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 
-# ----- Define Model -----
+# ----- Model -----
 def GlobalAvgPooling(x):
     return x.mean(dim=2).mean(dim=2)
 
@@ -58,7 +58,6 @@ def preprocess_image(uploaded_file):
     img_tensor = torch.tensor(img).unsqueeze(0).to(device)
     return img_tensor, image
 
-# ----- Risk Label -----
 def get_risk_label(score):
     if score >= 85:
         return "High Confidence"
@@ -67,21 +66,19 @@ def get_risk_label(score):
     else:
         return "Low Confidence"
 
-# ----- UI Setup -----
+# ----- Page Settings -----
 st.set_page_config(page_title="PhishShield", layout="wide")
 
-# CSS Styling
+# ----- Custom CSS -----
 st.markdown("""
     <style>
-        html, body, [class*="css"] {
-            font-family: 'Segoe UI', sans-serif;
-        }
         .main-title {
             text-align: center;
             font-size: 2.5rem;
             font-weight: bold;
             color: #2c3e50;
-            margin-top: 1rem;
+            margin-top: 0.5rem;
+            margin-bottom: 0.2rem;
         }
         .subtitle {
             text-align: center;
@@ -89,7 +86,7 @@ st.markdown("""
             color: #5d6d7e;
             margin-bottom: 2rem;
         }
-        .card {
+        .stContainer {
             background-color: #ffffff;
             padding: 1.5rem 2rem;
             border-radius: 18px;
@@ -105,7 +102,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# ----- Headers -----
+# ----- Heading -----
 st.markdown("<div class='main-title'>PhishShield – Steganography Detection</div>", unsafe_allow_html=True)
 st.markdown("<div class='subtitle'>AI-powered detection of hidden content in images</div>", unsafe_allow_html=True)
 
@@ -140,99 +137,86 @@ if uploaded_file:
         left_col, right_col = st.columns([1, 1.5], gap="large")
 
         with left_col:
-            st.markdown("<div class='card'>", unsafe_allow_html=True)
-            st.subheader("Uploaded Image")
-            st.image(display_image, use_container_width=True)
-            st.markdown(f"- **Size**: {display_image.size[0]} x {display_image.size[1]}")
-            st.markdown(f"- **Mode**: {display_image.mode}")
-            st.markdown(f"- **Format**: {uploaded_file.type.split('/')[-1].upper()}")
-            st.markdown(f"<div style='background-color:{risk_colors[confidence_level]};"
-                        f"padding: 10px 14px; border-radius: 12px; margin-top: 15px; "
-                        f"text-align:center; font-weight:600;'>"
-                        f"Risk Category: {confidence_level}</div>", unsafe_allow_html=True)
-            st.markdown("</div>", unsafe_allow_html=True)
+            with st.container():
+                st.subheader("Uploaded Image")
+                st.image(display_image, use_container_width=True)
+                st.markdown(f"- **Size**: {display_image.size[0]} x {display_image.size[1]}")
+                st.markdown(f"- **Mode**: {display_image.mode}")
+                st.markdown(f"- **Format**: {uploaded_file.type.split('/')[-1].upper()}")
+                st.markdown(f"<div style='background-color:{risk_colors[confidence_level]};"
+                            f"padding: 10px 14px; border-radius: 12px; margin-top: 15px; "
+                            f"text-align:center; font-weight:600;'>"
+                            f"Risk Category: {confidence_level}</div>", unsafe_allow_html=True)
 
         with right_col:
-            st.markdown("<div class='card'>", unsafe_allow_html=True)
-            st.subheader("Prediction Summary")
-            st.markdown(f"<h4 style='color:{result_color}; margin-top:-10px;'>{result}</h4>", unsafe_allow_html=True)
-            st.markdown(f"- **Confidence Score**: `{avg_score:.2f}%`")
-            st.markdown(f"- **Variance**: `{variance:.2f}`")
-            st.markdown(f"- **Confidence Level**: `{confidence_level}`")
-            st.markdown(f"- **Interpretation**: {interpretation}")
-            st.progress(int(avg_score))
-            st.markdown("</div>", unsafe_allow_html=True)
+            with st.container():
+                st.subheader("Prediction Summary")
+                st.markdown(f"<h4 style='color:{result_color}; margin-top:-10px;'>{result}</h4>", unsafe_allow_html=True)
+                st.markdown(f"- **Confidence Score**: `{avg_score:.2f}%`")
+                st.markdown(f"- **Variance**: `{variance:.2f}`")
+                st.markdown(f"- **Confidence Level**: `{confidence_level}`")
+                st.markdown(f"- **Interpretation**: {interpretation}")
+                st.progress(int(avg_score))
 
         # ----- Gauge -----
-        st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.subheader("Detection Confidence Gauge")
-        gauge = go.Figure(go.Indicator(
-            mode="gauge+number",
-            value=avg_score,
-            title={'text': "Confidence %"},
-            gauge={
-                'axis': {'range': [0, 100]},
-                'bar': {'color': result_color},
-                'steps': [
-                    {'range': [0, 60], 'color': "#dff9fb"},
-                    {'range': [60, 85], 'color': "#ffeaa7"},
-                    {'range': [85, 100], 'color': "#fab1a0"},
-                ]
-            }
-        ))
-        gauge.update_layout(height=250)
-        st.plotly_chart(gauge, use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
+        with st.container():
+            st.subheader("Detection Confidence Gauge")
+            gauge = go.Figure(go.Indicator(
+                mode="gauge+number",
+                value=avg_score,
+                title={'text': "Confidence %"},
+                gauge={
+                    'axis': {'range': [0, 100]},
+                    'bar': {'color': result_color},
+                    'steps': [
+                        {'range': [0, 60], 'color': "#dff9fb"},
+                        {'range': [60, 85], 'color': "#ffeaa7"},
+                        {'range': [85, 100], 'color': "#fab1a0"},
+                    ]
+                }
+            ))
+            gauge.update_layout(height=250)
+            st.plotly_chart(gauge, use_container_width=True)
 
         # ----- Visualizations -----
         df_scores = pd.DataFrame(scores.items(), columns=["Model", "Score"])
-        trend_df = pd.DataFrame({
-            "Model": list(scores.keys()),
-            "Score": list(scores.values())
-        })
 
         vis_cols = st.columns(2)
 
         with vis_cols[0]:
-            st.markdown("<div class='card'>", unsafe_allow_html=True)
-            st.subheader("Bar Chart")
-            bar = px.bar(df_scores, x="Model", y="Score", color="Score", color_continuous_scale="Blues", range_y=[0, 100])
-            st.plotly_chart(bar, use_container_width=True)
-            st.markdown("</div>", unsafe_allow_html=True)
+            with st.container():
+                st.subheader("Bar Chart")
+                bar = px.bar(df_scores, x="Model", y="Score", color="Score", color_continuous_scale="Blues", range_y=[0, 100])
+                st.plotly_chart(bar, use_container_width=True)
 
         with vis_cols[1]:
-            st.markdown("<div class='card'>", unsafe_allow_html=True)
-            st.subheader("Line Chart")
-            line = px.line(trend_df, x="Model", y="Score", markers=True, line_shape="spline",
-                           color_discrete_sequence=["#34495e"])
-            line.update_layout(yaxis_range=[0, 100])
-            st.plotly_chart(line, use_container_width=True)
-            st.markdown("</div>", unsafe_allow_html=True)
+            with st.container():
+                st.subheader("Line Chart")
+                line = px.line(df_scores, x="Model", y="Score", markers=True, line_shape="spline",
+                               color_discrete_sequence=["#34495e"])
+                line.update_layout(yaxis_range=[0, 100])
+                st.plotly_chart(line, use_container_width=True)
 
-        # ----- Additional Charts -----
         col3, col4 = st.columns(2)
 
         with col3:
-            st.markdown("<div class='card'>", unsafe_allow_html=True)
-            st.subheader("Box Plot")
-            box = px.box(df_scores, y="Score", points="all", color_discrete_sequence=["#8e24aa"])
-            st.plotly_chart(box, use_container_width=True)
-            st.markdown("</div>", unsafe_allow_html=True)
+            with st.container():
+                st.subheader("Box Plot")
+                box = px.box(df_scores, y="Score", points="all", color_discrete_sequence=["#8e24aa"])
+                st.plotly_chart(box, use_container_width=True)
 
         with col4:
-            st.markdown("<div class='card'>", unsafe_allow_html=True)
-            st.subheader("Pie Chart")
-            pie = px.pie(df_scores, names="Model", values="Score", color_discrete_sequence=px.colors.sequential.RdBu)
-            pie.update_traces(textinfo="percent+label")
-            st.plotly_chart(pie, use_container_width=True)
-            st.markdown("</div>", unsafe_allow_html=True)
+            with st.container():
+                st.subheader("Pie Chart")
+                pie = px.pie(df_scores, names="Model", values="Score", color_discrete_sequence=px.colors.sequential.RdBu)
+                pie.update_traces(textinfo="percent+label")
+                st.plotly_chart(pie, use_container_width=True)
 
         # ----- Download -----
-        st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.subheader("Download CSV Report")
-        csv = df_scores.to_csv(index=False).encode("utf-8")
-        st.download_button("Download Report", csv, "phishshield_report.csv", "text/csv")
-        st.markdown("</div>", unsafe_allow_html=True)
+        with st.container():
+            st.subheader("Download CSV Report")
+            csv = df_scores.to_csv(index=False).encode("utf-8")
+            st.download_button("Download Report", csv, "phishshield_report.csv", "text/csv")
 
 # ----- Footer -----
 st.markdown("<div class='footer'>© 2025 PhishShield – Final Year Project | Built with PyTorch & Streamlit</div>", unsafe_allow_html=True)
