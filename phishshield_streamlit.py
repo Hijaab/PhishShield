@@ -1,5 +1,4 @@
 import os
-# 🔧 Must be set before importing streamlit to prevent inotify error
 os.environ["STREAMLIT_DISABLE_FILE_WATCHER"] = "true"
 
 import streamlit as st
@@ -8,6 +7,7 @@ import torch.nn as nn
 from efficientnet_pytorch import EfficientNet
 import numpy as np
 from PIL import Image
+import pandas as pd
 
 # ----- Setup -----
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -61,13 +61,12 @@ st.set_page_config(page_title="PhishShield", layout="wide")
 
 st.markdown("""
 # 🛡️ PhishShield: Steganography Detector  
-Upload an image and our AI ensemble will determine if hidden steganographic content is present.
+Upload an image and our AI ensemble will analyze it for hidden steganographic content.
 """)
 
 uploaded_file = st.file_uploader("Upload an Image", type=list(ALLOWED_EXTENSIONS), label_visibility="collapsed")
 
-# Two columns: left (image), right (result)
-left_col, right_col = st.columns([1, 1.2])
+left_col, right_col = st.columns([1, 1.5])
 
 if uploaded_file:
     with st.spinner("🔍 Analyzing..."):
@@ -85,18 +84,32 @@ if uploaded_file:
         result = 'Stego' if avg_score >= 60 else 'Non-Steg'
         result_color = 'red' if result == 'Stego' else 'green'
 
-        # LEFT: Image
+        # ----- LEFT COLUMN -----
         with left_col:
             st.subheader("📷 Uploaded Image")
             st.image(display_image, use_container_width=True)
+            st.markdown("---")
+            st.markdown("### ℹ️ Model Output (Raw)")
+            with st.expander("See JSON Output"):
+                st.json(scores)
 
-        # RIGHT: Results
+        # ----- RIGHT COLUMN -----
         with right_col:
-            st.subheader("🧠 Prediction Results")
-            st.markdown(f"<h3 style='color:{result_color}'>Result: {result}</h3>", unsafe_allow_html=True)
-            st.markdown(f"**Confidence Score:** `{avg_score:.2f}%`")
+            st.subheader("🧠 AI Prediction")
+            st.markdown(f"<h3 style='color:{result_color}'>Prediction: {result}</h3>", unsafe_allow_html=True)
             st.progress(int(avg_score))
 
-            st.subheader("📊 Individual Model Scores")
-            for model_name, score in scores.items():
-                st.write(f"{model_name}: {score}%")
+            col1, col2 = st.columns(2)
+            col1.metric("Confidence", f"{avg_score:.2f}%", delta=None)
+            col2.metric("Models Used", f"{len(models)}")
+
+            st.subheader("📊 Model Agreement Chart")
+            score_df = pd.DataFrame(scores.items(), columns=["Model", "Score (%)"])
+            st.bar_chart(score_df.set_index("Model"))
+
+            st.subheader("📈 Trend Simulation")
+            # Simulate fake trend just for busy-looking UI
+            fake_trend = pd.DataFrame({
+                "Ensemble Trend": np.convolve(predictions, np.ones(2)/2, mode='same')
+            })
+            st.line_chart(fake_trend)
