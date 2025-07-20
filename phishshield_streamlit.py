@@ -40,8 +40,6 @@ def load_models():
     for i in range(1, 5):
         model = ENSModel().to(device)
         model_path = os.path.join("model", f"efficientnet_model_{i}.pt")
-        if not os.path.exists(model_path):
-            raise FileNotFoundError(f"Model file not found: {model_path}")
         model.load_state_dict(torch.load(model_path, map_location=device))
         model.eval()
         models.append(model)
@@ -58,7 +56,6 @@ def preprocess_image(uploaded_file):
     img_tensor = torch.tensor(img).unsqueeze(0).to(device)
     return img_tensor, image
 
-# ----- Risk Label -----
 def get_risk_label(score):
     if score >= 85:
         return "High Confidence"
@@ -67,82 +64,54 @@ def get_risk_label(score):
     else:
         return "Low Confidence"
 
-# ----- UI Setup -----
+# ----- Page Setup -----
 st.set_page_config(page_title="PhishShield", layout="wide")
 
-# ---- Styling ----
 st.markdown("""
     <style>
-        html, body, [class*="css"] {
-            font-family: 'Segoe UI', sans-serif;
-            background-color: #f5f7fa;
-        }
-        .block-container {
-            padding-top: 2.5rem !important;
-            padding-bottom: 2rem !important;
-        }
-        .main-header {
-            text-align: center;
-            font-size: 2.7rem;
-            font-weight: 700;
-            color: #1e3a8a;
-            margin-bottom: 0.3rem;
-        }
-        .sub-header {
-            text-align: center;
-            font-size: 1.1rem;
-            color: #607d8b;
-            margin-bottom: 2rem;
-        }
-        .card {
-            background-color: #ffffff;
-            padding: 1.5rem;
-            border-radius: 18px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
-            margin-bottom: 2rem;
-        }
-        .risk-badge {
-            padding: 0.5rem 1rem;
-            border-radius: 10px;
-            font-weight: 600;
-            font-size: 15px;
-            display: inline-block;
-            margin-top: 1rem;
-            color: white;
-        }
-        .center-footer {
-            text-align: center;
-            font-size: 14px;
-            color: #9e9e9e;
-            padding-top: 40px;
-        }
-        .stDownloadButton > button {
-            background-color: #3949ab;
-            color: white;
-            border-radius: 8px;
-            padding: 0.5rem 1.1rem;
-            transition: 0.3s;
-        }
-        .stDownloadButton > button:hover {
-            background-color: #1e3a8a;
-            transform: scale(1.03);
-        }
+    .main-header {
+        text-align: center;
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #1e3a8a;
+        margin-top: 1rem;
+        margin-bottom: 0.5rem;
+    }
+    .sub-header {
+        text-align: center;
+        font-size: 1.1rem;
+        color: #607d8b;
+        margin-bottom: 2rem;
+    }
+    .card {
+        background-color: #ffffff;
+        padding: 1.5rem;
+        border-radius: 20px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.07);
+        margin-bottom: 2rem;
+    }
+    .center-footer {
+        text-align: center;
+        font-size: 14px;
+        color: #9e9e9e;
+        padding-top: 40px;
+        padding-bottom: 20px;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-# ---- Header ----
+# ----- Headers -----
 st.markdown("<div class='main-header'>PhishShield – Steganography Detection</div>", unsafe_allow_html=True)
 st.markdown("<div class='sub-header'>AI-powered ensemble detection of hidden content in digital images</div>", unsafe_allow_html=True)
 
-# ---- Upload Image ----
+# ----- Upload -----
 uploaded_file = st.file_uploader("📤 Upload an image (PNG, JPG, JPEG)", type=list(ALLOWED_EXTENSIONS))
 
 if uploaded_file:
     img_tensor, display_image = preprocess_image(uploaded_file)
 
-    with st.spinner("🧠 Running AI detection..."):
-        predictions = []
-        scores = {}
+    with st.spinner("Running model predictions..."):
+        predictions, scores = [], {}
         with torch.no_grad():
             for idx, model in enumerate(models):
                 output = model(img_tensor)
@@ -153,39 +122,34 @@ if uploaded_file:
         avg_score = round(np.mean(predictions) * 100, 2)
         variance = round(np.var(predictions) * 10000, 2)
         result = "Stego" if avg_score >= 60 else "Non-Steg"
-        interpretation = "🔐 Hidden content likely present." if result == "Stego" else "✅ No hidden content detected."
-        confidence_level = get_risk_label(avg_score)
         result_color = '#e53935' if result == 'Stego' else '#43a047'
+        confidence_level = get_risk_label(avg_score)
+        interpretation = "🔐 Hidden content likely present." if result == "Stego" else "✅ No hidden content detected."
 
-        badge_colors = {
-            "Low Confidence": "#81c784",
-            "Moderate Confidence": "#ffb74d",
-            "High Confidence": "#e57373"
-        }
+    left_col, right_col = st.columns([1, 1.5], gap="large")
 
-        left_col, right_col = st.columns([1, 1.5], gap="large")
-
-        # LEFT SIDE
-        with left_col:
+    # ----- LEFT COLUMN -----
+    with left_col:
+        with st.container():
             st.markdown("<div class='card'>", unsafe_allow_html=True)
-            st.image(display_image, caption="🖼 Uploaded Image", use_container_width=True)
+            st.subheader("📷 Uploaded Image")
+            st.image(display_image, use_container_width=True)
             st.markdown(f"**Size:** {display_image.size[0]} x {display_image.size[1]}  \n"
                         f"**Mode:** {display_image.mode}  \n"
                         f"**Format:** {uploaded_file.type.split('/')[-1].upper()}")
-            st.markdown(f"<div class='risk-badge' style='background-color:{badge_colors[confidence_level]};'>"
-                        f"Risk Level: {confidence_level}</div>", unsafe_allow_html=True)
             with st.expander("📊 Raw Model Scores"):
                 st.json(scores)
             st.markdown("</div>", unsafe_allow_html=True)
 
-        # RIGHT SIDE
-        with right_col:
+    # ----- RIGHT COLUMN -----
+    with right_col:
+        with st.container():
             st.markdown("<div class='card'>", unsafe_allow_html=True)
             st.subheader("Prediction Summary")
-            st.markdown(f"<h4 style='color:{result_color}; margin-top: -10px;'>{result}</h4>", unsafe_allow_html=True)
+            st.markdown(f"<h4 style='color:{result_color}'>{result}</h4>", unsafe_allow_html=True)
             st.markdown(f"**Confidence Score**: `{avg_score:.2f}%`")
-            st.markdown(f"**Prediction Level**: `{confidence_level}`")
-            st.markdown(f"**Model Disagreement (Variance)**: `{variance:.2f}`")
+            st.markdown(f"**Confidence Level**: `{confidence_level}`")
+            st.markdown(f"**Variance (Disagreement)**: `{variance:.2f}`")
             st.markdown(f"**Interpretation**: {interpretation}")
             st.progress(int(avg_score))
             col1, col2 = st.columns(2)
@@ -193,12 +157,13 @@ if uploaded_file:
             col2.metric("Threshold", "60%")
             st.markdown("</div>", unsafe_allow_html=True)
 
+        with st.container():
             st.markdown("<div class='card'>", unsafe_allow_html=True)
-            st.subheader("Confidence Gauge")
+            st.subheader("Detection Gauge")
             fig_gauge = go.Figure(go.Indicator(
                 mode="gauge+number",
                 value=avg_score,
-                title={'text': "Detection Confidence (%)"},
+                title={'text': "Confidence (%)"},
                 gauge={
                     'axis': {'range': [0, 100]},
                     'bar': {'color': result_color},
@@ -213,44 +178,42 @@ if uploaded_file:
             st.plotly_chart(fig_gauge, use_container_width=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
-        # CHARTS
+    # ----- VISUALIZATIONS -----
+    df_scores = pd.DataFrame(scores.items(), columns=["Model", "Score"])
+
+    with st.container():
         st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.subheader("Model Score Visualizations")
-        df_scores = pd.DataFrame(scores.items(), columns=["Model", "Score"])
+        st.subheader("Visualizations")
         col1, col2 = st.columns(2)
-
         with col1:
-            bar_chart = px.bar(df_scores, x="Model", y="Score", color="Score",
-                               color_continuous_scale="Blues", range_y=[0, 100], height=300)
-            st.plotly_chart(bar_chart, use_container_width=True)
-
+            bar = px.bar(df_scores, x="Model", y="Score", color="Score",
+                         color_continuous_scale="Blues", range_y=[0, 100])
+            st.plotly_chart(bar, use_container_width=True)
         with col2:
-            line_chart = px.line(df_scores, x="Model", y="Score", markers=True,
-                                 line_shape="spline", color_discrete_sequence=["#3949ab"])
-            line_chart.update_layout(yaxis_range=[0, 100])
-            st.plotly_chart(line_chart, use_container_width=True)
+            line = px.line(df_scores, x="Model", y="Score", markers=True,
+                           line_shape="spline", color_discrete_sequence=["#3949ab"])
+            line.update_layout(yaxis_range=[0, 100])
+            st.plotly_chart(line, use_container_width=True)
 
         col3, col4 = st.columns(2)
-
         with col3:
             box = px.box(df_scores, y="Score", points="all", color_discrete_sequence=["#ab47bc"])
             box.update_layout(height=300)
             st.plotly_chart(box, use_container_width=True)
-
         with col4:
             pie = px.pie(df_scores, names="Model", values="Score",
                          color_discrete_sequence=px.colors.sequential.RdBu)
             pie.update_traces(textinfo="percent+label")
             st.plotly_chart(pie, use_container_width=True)
-
         st.markdown("</div>", unsafe_allow_html=True)
 
-        # DOWNLOAD REPORT
+    # ----- DOWNLOAD REPORT -----
+    with st.container():
         st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.subheader("Download CSV Report")
+        st.subheader("Download Report")
         report_csv = df_scores.to_csv(index=False).encode('utf-8')
-        st.download_button("📥 Download Report", report_csv, "phishshield_report.csv", "text/csv")
+        st.download_button("📥 Download CSV", report_csv, "phishshield_report.csv", "text/csv")
         st.markdown("</div>", unsafe_allow_html=True)
 
-# ---- Footer ----
+# ----- FOOTER -----
 st.markdown("<div class='center-footer'>© 2025 PhishShield – Final Year Project | Built with PyTorch & Streamlit</div>", unsafe_allow_html=True)
