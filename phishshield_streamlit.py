@@ -122,7 +122,7 @@ if uploaded_file:
 
         avg_score = round(np.mean(predictions) * 100, 2)
         variance = round(np.var(predictions) * 10000, 2)
-        result = "Stego" if avg_score >= 60 else "Non-Steg"
+        result = "Stego" if avg_score >= 80 else "Non-Steg"
         interpretation = "Potential hidden content detected." if result == "Stego" else "No hidden content detected."
         confidence_level = get_risk_label(avg_score)
         result_color = "#e74c3c" if result == "Stego" else "#2ecc71"
