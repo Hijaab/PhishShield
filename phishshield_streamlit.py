@@ -219,4 +219,4 @@ if uploaded_file:
             st.download_button("Download Report", csv, "phishshield_report.csv", "text/csv")
 
 # ----- Footer -----
-st.markdown("<div class='footer'>© 2025 PhishShield – Final Year Project | Built with PyTorch & Streamlit</div>", unsafe_allow_html=True)
+st.markdown("<div class='footer'>© 2026 PhishShield – Final Year Project | Built with PyTorch & Streamlit</div>", unsafe_allow_html=True)
